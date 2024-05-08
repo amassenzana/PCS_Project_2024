@@ -1,7 +1,6 @@
+#include "DFNLibrary.hpp"
 
 
-
-int main(){
-
-  return 0;
+void pippo(){
+    std::cout << "OK" << std::endl;
 }

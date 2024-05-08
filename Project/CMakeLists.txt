@@ -38,15 +38,35 @@ list(APPEND DFN_LINKED_LIBRARIES PRIVATE GTest::gmock_main)
 
 # Insert Sources
 ################################################################################
-
+add_subdirectory(src)
 list(APPEND DFN_SOURCES ${DFN_sources})
 list(APPEND DFN_HEADERS ${DFN_headers})
-list(APPEND DFN_INCLUDE ${DFN_includes})
+list(APPEND DFN_INCLUDE ${DFN_include})
+
+
+add_subdirectory(src_test)
+list(APPEND DFN_TEST_SOURCES ${DFN_TEST_sources})
+list(APPEND DFN_TEST_HEADERS ${DFN_TEST_headers})
+list(APPEND DFN_TEST_includes ${DFN_TEST_include})
+
+# add_subdirectory(TestingParaview/Code/src)
+# list(APPEND DFN_PARAVIEW_sources ${src_paraview_sources})
+# list(APPEND DFN_PARAVIEW_headers ${src_paraview_headers})
+# list(APPEND DFN_PARAVIEW_includes ${src_paraview_includes})
+
 
 # Create executable
 ################################################################################
 add_executable(${PROJECT_NAME}	main.cpp ${DFN_SOURCES}   ${DFN_HEADERS})
-
 target_link_libraries(${PROJECT_NAME} ${DFN_LINKED_LIBRARIES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${DFN_INCLUDE})
 target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
+
+
+add_executable(${PROJECT_NAME}_TEST main_test.cpp ${DFN_SOURCES}   ${DFN_HEADERS} ${DFN_TEST_SOURCES}   ${DFN_TEST_HEADERS})
+target_link_libraries(${PROJECT_NAME} ${DFN_LINKED_LIBRARIES})
+target_include_directories(${PROJECT_NAME} PRIVATE ${DFN_INCLUDE})
+target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
+
+
+

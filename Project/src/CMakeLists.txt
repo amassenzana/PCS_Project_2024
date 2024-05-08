@@ -1,7 +1,7 @@
-list(APPEND src_sources "${CMAKE_CURRENT_SOURCE_DIR}/GeometryLibrary.cpp")
-list(APPEND src_headers "${CMAKE_CURRENT_SOURCE_DIR}/GeometryLibrary.hpp")
-list(APPEND src_includes "${CMAKE_CURRENT_SOURCE_DIR}")
+list(APPEND DFN_sources "${CMAKE_CURRENT_SOURCE_DIR}/DFNLibrary.cpp")
+list(APPEND DFN_headers "${CMAKE_CURRENT_SOURCE_DIR}/DFNLibrary.hpp")
+list(APPEND DFN_include ${CMAKE_CURRENT_SOURCE_DIR})
 
-set (src_sources ${src_sources} PARENT_SCOPE)
-set (src_headers ${src_headers} PARENT_SCOPE)
-set (src_includes ${src_includes} PARENT_SCOPE)
+set (DFN_sources ${DFN_sources} PARENT_SCOPE)
+set (DFN_headers ${DFN_headers} PARENT_SCOPE)
+set (DFN_include ${DFN_include} PARENT_SCOPE)

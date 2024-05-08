@@ -1,7 +1,20 @@
+#pragma once
+#include <iostream>
+
+void pippo();
+
+
+namespace DFNLibrary{
 
 
 
-int main(){
 
-  return 0;
-}
+
+
+
+
+
+
+} // namespace DFNLibrary
+
+
