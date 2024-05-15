@@ -40,9 +40,42 @@ bool DFNLibrary::importDFN(std::string path, DFN &dfn){
             }
             f.vertices[f.numVert-1](i) = stod(lines[i]);
         }
+        f.computeCenter();
+        f.computeRadius();
         dfn.fractures.push_back(f);
     }
 
 
     return true;
+}
+
+void DFNLibrary::Frattura::computeCenter(){
+
+
+    Eigen::Vector3d c = {0, 0, 0};
+    double sw = 0;
+
+    for(int i = 1; i < numVert+1; i++){
+        double w =  (vertices[i%numVert]-vertices[(i+1)%numVert]).norm() +
+                    (vertices[i%numVert]-vertices[(i-1)%numVert]).norm();
+        c += vertices[i%numVert]*w;
+        sw += w;
+    }
+
+    center[0] = c[0]/sw;
+    center[1] = c[1]/sw;
+    center[2] = c[2]/sw;
+    cout << center << endl;
+}
+
+void DFNLibrary::Frattura::computeRadius(){
+    double max = 0, t = 0;
+    for(int i = 0; i < numVert; i++){
+        t = (center-vertices[i]).norm();
+        if(t>max)
+            max = t;
+    }
+
+    radius = max;
+    cout << radius << endl;
 }

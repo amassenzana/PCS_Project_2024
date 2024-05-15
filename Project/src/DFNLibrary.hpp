@@ -13,6 +13,10 @@ struct Frattura{
     int id;
     int numVert;
     std::vector<Eigen::Vector3d> vertices;
+    Eigen::Vector3d center;
+    double radius;
+    void computeCenter();
+    void computeRadius();
 };
 
 struct Traccia{
