@@ -24,22 +24,22 @@ bool DFNLibrary::importDFN(std::string path, DFN &dfn){
         Frattura f;
         getline(file, line); // BRUCIO # FractureId; NumVertices
         getline(file, line, ';');
-        f.id = stoi(line);
+        f.id = stoi(line);      // Salvo FractureId dal file in f.id
         getline(file, line);
         f.numVert = stoi(line);
-        f.vertices.resize(f.numVert);
+        f.vertices.resize(f.numVert);   // Salvo NumVertices dal file in f.numVert
         getline(file, line); // BRUCIO # Vertices
 
         vector<string> lines(3);
 
         for(size_t i = 0; i < 3; i++){
             getline(file, lines[i]);
-            for(size_t j = 0; j < f.numVert-1; j++){
-                int pos = lines[i].find(';',0);
-                f.vertices[j](i) = stod(lines[i].substr(0,pos));
-                lines[i] = lines[i].substr(pos+1, string::npos);
+            istringstream converter(lines[i]);          // int pos = lines[i].find(';',0);
+            for(size_t j = 0; j < f.numVert; j++){
+                char tmp;                               // f.vertices[j](i) = stod(lines[i].substr(0,pos));
+                converter >> f.vertices[j][i] >> tmp;   // lines[i] = lines[i].substr(pos+1, string::npos);
             }
-            f.vertices[f.numVert-1](i) = stod(lines[i]);
+            // f.vertices[f.numVert-1](i) = stod(lines[i]);
         }
         f.computeCenter();
         f.computeRadius();
@@ -83,11 +83,6 @@ void DFNLibrary::Frattura::computeRadius(){
 }
 
 
-
-
-
-
-
 void DFNLibrary::Frattura::computePlane(){
 
     Eigen::Vector3d p1 = vertices[0];
@@ -105,7 +100,7 @@ void DFNLibrary::Frattura::computePlane(){
 
 void DFNLibrary::DFN::computeDFN(){
     for(int i = 0; i < numberFractures; i++){
-        for(int j = 0; j < numberFractures; j++){
+        for(int j = i+1; j < numberFractures; j++){
             if(i!=j && checkIntersection(fractures[i], fractures[j]))
                 cout << "Intersezione tra f[" << i << "] e f[" << j << "]" << endl;
         }
@@ -115,11 +110,16 @@ void DFNLibrary::DFN::computeDFN(){
 }
 
 bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2){
+
+    // TEST 1: La distanza tra f1 e f2 è maggiore della somma dei raggi
+    //  delle ipersfere che le contengono
     double distance = (f1.center-f2.center).norm();
     if(distance > f1.radius+f2.radius)
         return false;
 
 
+    // TEST 2: Uno dei poligoni sta interamente a destra (o a sinistra)
+    //          del piano contente l'altro
     int s = sign(f1.planeC.dot(f2.vertices[0]) + f1.planeD);
     bool flag = false;
 
@@ -137,6 +137,17 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2){
             flag = true;
     }
     if(!flag) return false;
+
+
+    // calcolo intersezione:
+
+    using Plane = Eigen::Hyperplane<double, 3>;
+    Plane plane1 = Plane::Through(f1.vertices[0].transpose(), f1.planeC);
+    Plane plane2 = Plane::Through(f2.vertices[0].transpose(), f2.planeC);
+
+    Eigen::Vector3d lineDirection = plane1.normal().cross(plane2.normal());
+    Eigen::Vector3d linePoint = plane1.intersection(plane2);
+
 
 
 

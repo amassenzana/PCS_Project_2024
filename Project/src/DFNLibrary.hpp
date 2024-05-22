@@ -23,6 +23,7 @@ struct Frattura{
 struct Traccia{
     Eigen::Vector3d origin, end;
     Frattura* generator[2];
+    bool passante[2];
 };
 
 struct DFN{
