@@ -101,15 +101,18 @@ void DFNLibrary::Frattura::computePlane(){
 void DFNLibrary::DFN::computeDFN(){
     for(int i = 0; i < numberFractures; i++){
         for(int j = i+1; j < numberFractures; j++){
-            if(i!=j && checkIntersection(fractures[i], fractures[j]))
-                cout << "Intersezione tra f[" << i << "] e f[" << j << "]" << endl;
+            vector<Eigen::Vector3d> v;
+            if(i!=j && checkIntersection(fractures[i], fractures[j], v)){
+                cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
+
+            }
         }
     }
 
 
 }
 
-bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2){
+bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vector3d> &v){
 
     // TEST 1: La distanza tra f1 e f2 è maggiore della somma dei raggi
     //  delle ipersfere che le contengono
@@ -132,26 +135,86 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2){
     s = sign(f2.planeC.dot(f1.vertices[0]) + f2.planeD);
     flag = false;
     for(int i = 1; i < f1.numVert; i++){
-        double k = f2.planeC.dot(f1.vertices[i]) + f2.planeD;
+        double k = sign(f2.planeC.dot(f1.vertices[i]) + f2.planeD);
         if(! (k == s))
             flag = true;
     }
     if(!flag) return false;
 
 
-    // calcolo intersezione:
+    Eigen::Matrix2d MAT;
+    Eigen::Vector2d TN;
 
-    using Plane = Eigen::Hyperplane<double, 3>;
-    Plane plane1 = Plane::Through(f1.vertices[0].transpose(), f1.planeC);
-    Plane plane2 = Plane::Through(f2.vertices[0].transpose(), f2.planeC);
+    MAT << f1.planeC[0], f1.planeC[1],
+         f2.planeC[0], f2.planeC[1];
+    TN << -f1.planeD, -f2.planeD;
 
-    Eigen::Vector3d lineDirection = plane1.normal().cross(plane2.normal());
-    Eigen::Vector3d linePoint = plane1.intersection(plane2);
+    Eigen::Vector2d x = MAT.colPivHouseholderQr().solve(TN);
+    Eigen::Vector3d p1{{x(0),x(1),0}};
+    // Eigen::Vector3d P{{0.017584598939879986, 0, 0}};
+    Eigen::Vector3d v1 = f1.planeC.cross(f2.planeC);
+
+
+    // vector<Eigen::Vector3d> v;
+    v.reserve(4);
+
+    for(int i = 0; i < f1.numVert; i++){
+        Eigen::Vector3d B = f1.vertices[i], p2 = f1.vertices[(i+1)%f1.numVert];
+        Eigen::Vector3d v2 = B-p2;
+
+        Eigen::Vector3d w0 = p1-p2;
+        double a = v1.dot(v1);
+        double b = v1.dot(v2);
+        double c = v2.dot(v2);
+        double d = v1.dot(w0);
+        double e = v2.dot(w0);
+
+        double denom = a*c - b*b;
+        if (denom == 0) {
+            // std::cout << "Le rette sono parallele o coincidenti.\n";
+            continue;
+        }
+        double sc = (b*e - c*d) / denom;
+        double tc = (a*e - b*d) / denom;
+
+        Eigen::Vector3d intersection = p2 + tc*v2;
+        if(tc > -tol && tc < 1+tol)
+            v.push_back(intersection);
+    }
+
+
+    for(int i = 0; i < f2.numVert; i++){
+        Eigen::Vector3d B = f2.vertices[i], p2 = f2.vertices[(i+1)%f2.numVert];
+        Eigen::Vector3d v2 = B-p2;
+
+        Eigen::Vector3d w0 = p1-p2;
+        double a = v1.dot(v1);
+        double b = v1.dot(v2);
+        double c = v2.dot(v2);
+        double d = v1.dot(w0);
+        double e = v2.dot(w0);
+
+        double denom = a*c - b*b;
+        if (denom == 0) {
+            // std::cout << "Le rette sono parallele o coincidenti.\n";
+            continue;
+        }
+        double sc = (b*e - c*d) / denom;
+        double tc = (a*e - b*d) / denom;
+
+        Eigen::Vector3d intersection = p2 + tc*v2;
+        if(tc > -tol && tc < 1+tol)
+            v.push_back(intersection);
+
+    }
+
+    if(v.size()>0)
+        return true;
 
 
 
 
-    return true;
+    return false;
 }
 
 int DFNLibrary::sign(double d){
@@ -162,4 +225,7 @@ int DFNLibrary::sign(double d){
 
     return 0;
 }
+
+
+
 

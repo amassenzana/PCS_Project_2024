@@ -34,7 +34,7 @@ struct DFN{
 };
 
 bool importDFN(std::string path, DFN& dfn);
-bool checkIntersection(Frattura& f1, Frattura& f2);
+bool checkIntersection(Frattura& f1, Frattura& f2, std::vector<Eigen::Vector3d>& v);
 int sign(double d);
 } // namespace DFNLibrary
 
