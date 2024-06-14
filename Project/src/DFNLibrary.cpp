@@ -1,6 +1,7 @@
 #include "DFNLibrary.hpp"
 #include <fstream>
 #include <list>
+#include <iomanip>
 #define tol 1e-10
 
 using namespace std;
@@ -104,9 +105,17 @@ void DFNLibrary::DFN::computeDFN(){
             vector<Eigen::Vector3d> v;
             if(i!=j && checkIntersection(fractures[i], fractures[j], v)){
                 cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
-                for (int k = 0; k < fractures[i].IntersectionPoints.size(); k++)
+                if ( fractures[i].IntersectionPoints.size() != 0)
                 {
-                    cout << fractures[i].IntersectionPoints[k] << endl;
+                    for (int k = 0; k < fractures[i].IntersectionPoints.size(); k++)
+                    {
+                        cout << setprecision(16) << scientific << fractures[i].IntersectionPoints[k] << endl;
+                        cout << "" << endl;
+                    }
+                }
+                else
+                {
+                    cout << "non va bene" << endl;
                 }
 
             }
@@ -178,7 +187,21 @@ Eigen::Vector3d DFNLibrary::IntersectVerif(Eigen::Vector3d qp_l, Eigen::Vector3d
     Eigen::Vector3d d1 = p2-p1;
     Eigen::Vector3d n = dqp.cross(d1);
     Eigen::Vector3d sr = qp_l - p1;
+
+    // Check if the lines are parallel
+    if (n.isZero(1e-6)) {
+        std::cout << "The lines are parallel, returning NaN vector." << std::endl;
+        return Eigen::Vector3d(std::nan(""), std::nan(""), std::nan(""));
+    }
+
     double t = (sr.cross(d1)).dot(n) / n.dot(n);
+
+    // Check if t is infinite
+    if (std::isinf(t)) {
+        std::cout << "The lines are infinitely long, returning NaN vector." << std::endl;
+        return Eigen::Vector3d(std::nan(""), std::nan(""), std::nan(""));
+    }
+
     return qp_l + dqp * t;
 }
 
@@ -211,13 +234,13 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
     }
     if(!flag) return false;
 
-
     // INTERSEZIONE
     Eigen::Vector3d tmpvec1_1 , tmpvec1_2;
     Eigen::Vector3d tmpvec2_1 , tmpvec2_2;
     Eigen::Vector2d prj1_1_xy , prj1_1_xz, prj1_1_yz, prj1_2_xy , prj1_2_xz, prj1_2_yz;
     Eigen::Vector2d prj2_1_xy , prj2_1_xz, prj2_1_yz, prj2_2_xy , prj2_2_xz, prj2_2_yz;
     int tmpcount = 0;
+    Eigen::Vector3d PlaneDir = f1.planeC;
     for (int i = 0; i <= f1.numVert; i++)
     {
         Eigen::Vector3d tmpvec1_1 = f1.vertices[i%f1.numVert];
@@ -230,6 +253,7 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
         Eigen::Vector2d prj1_2_yz = ProjYZ(tmpvec1_2);
         for (int j = 0; j < f2.numVert; j++)
         {
+            tmpcount = 0;
             tmpvec2_1 = f2.vertices[j%f2.numVert];
             tmpvec2_2 = f2.vertices[(j+1)%f2.numVert];
             prj2_1_xy = ProjXY(tmpvec2_1);
@@ -245,11 +269,11 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
             {
                 Eigen::Vector2d qp = result.first;
                 Eigen::Vector3d qp_xy (qp[0], qp[1], 0);
-                Eigen::Vector3d dqp (0, 0, 1);
-                // f1.IntersectionPoints.push_back(IntersectVerif(qp_xy, dqp, tmpvec2_1, tmpvec2_2));
+                // Eigen::Vector3d dqp (0, 0, 1); -> FALSO
+                f1.IntersectionPoints.push_back(IntersectVerif(qp_xy, PlaneDir, tmpvec2_1, tmpvec2_2));
                 tmpcount++;
                 f1.GoodValsDouble.push_back(Eigen::Vector2d (i,j));
-                std::vector<Eigen::Vector3d> tmpvec = {qp_xy, dqp, tmpvec2_1, tmpvec2_2};
+                std::vector<Eigen::Vector3d> tmpvec = {qp_xy, PlaneDir, tmpvec2_1, tmpvec2_2};
                 f1.GoodValsVec.push_back(tmpvec);
             }
             else
@@ -260,11 +284,11 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
                 {
                     Eigen::Vector2d qp = result.first;
                     Eigen::Vector3d qp_xz (qp[0], 0, qp[1]);
-                    Eigen::Vector3d dqp (0, 1, 0);
-                    // f1.IntersectionPoints.push_back(IntersectVerif(qp_xz, dqp, tmpvec2_1, tmpvec2_2));
+                    // Eigen::Vector3d dqp (0, 1, 0); -> FALSO
+                    f1.IntersectionPoints.push_back(IntersectVerif(qp_xz, PlaneDir, tmpvec2_1, tmpvec2_2));
                     tmpcount++;
                     f1.GoodValsDouble.push_back(Eigen::Vector2d (i,j));
-                    std::vector<Eigen::Vector3d> tmpvec = {qp_xz, dqp, tmpvec2_1, tmpvec2_2};
+                    std::vector<Eigen::Vector3d> tmpvec = {qp_xz, PlaneDir, tmpvec2_1, tmpvec2_2};
                     f1.GoodValsVec.push_back(tmpvec);
                 }
                 else
@@ -275,11 +299,11 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
                     {
                         Eigen::Vector2d qp = result.first;
                         Eigen::Vector3d qp_yz (0, qp[0], qp[1]);
-                        Eigen::Vector3d dqp (1, 0, 0);
-                        // f1.IntersectionPoints.push_back(IntersectVerif(qp_yz, dqp, tmpvec2_1, tmpvec2_2));
+                        // Eigen::Vector3d dqp (1, 0, 0); -> FALSO
+                        f1.IntersectionPoints.push_back(IntersectVerif(qp_yz, PlaneDir, tmpvec2_1, tmpvec2_2));
                         tmpcount++;
                         f1.GoodValsDouble.push_back(Eigen::Vector2d (i,j));
-                        std::vector<Eigen::Vector3d> tmpvec = {qp_yz, dqp, tmpvec2_1, tmpvec2_2};
+                        std::vector<Eigen::Vector3d> tmpvec = {qp_yz, PlaneDir, tmpvec2_1, tmpvec2_2};
                         f1.GoodValsVec.push_back(tmpvec);
                     }
                 }
@@ -287,19 +311,19 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
         }
     }
 
-    for (int m = 0; m < f1.GoodValsDouble.size(); m++)
-    {
-        for (int n = 0; n < f2.GoodValsDouble.size(); n++)
-        {
-            std::vector j1 = {f1.GoodValsDouble[m][0], f1.GoodValsDouble[m][0]+1};
-            std::vector j2 = {f1.GoodValsDouble[m][1], f1.GoodValsDouble[m][0]+1};
-            tmpvec2_1 = f2.vertices[int (j1[0])%f2.numVert];
-            tmpvec2_2 = f2.vertices[int (j1[1])%f2.numVert];
-            // Eigen::Vector3d tmpvecfinal = IntersectVerif(f1.GoodValsVec[m][0], f1.GoodValsVec[m][1], f1.GoodValsVec[m][2], f1.GoodValsVec[m][3]);
-            Eigen::Vector3d tmpvecfinal = IntersectVerif(f1.GoodValsVec[m][0], f1.GoodValsVec[m][1], tmpvec2_1, tmpvec2_2);
-            f1.IntersectionPoints.push_back(tmpvecfinal);
-        }
-    }
+    // for (int m = 0; m < f1.GoodValsDouble.size(); m++)
+    // {
+    //     for (int n = 0; n < f2.GoodValsDouble.size(); n++)
+    //     {
+    //         std::vector j1 = {f1.GoodValsDouble[m][0], f1.GoodValsDouble[m][0]+1};
+    //         std::vector j2 = {f1.GoodValsDouble[m][1], f1.GoodValsDouble[m][0]+1};
+    //         tmpvec2_1 = f2.vertices[int (j1[0])%f2.numVert];
+    //         tmpvec2_2 = f2.vertices[int (j1[1])%f2.numVert];
+    //         Eigen::Vector3d tmpvecfinal = IntersectVerif(f1.GoodValsVec[m][0], f1.GoodValsVec[m][1], f1.GoodValsVec[m][2], f1.GoodValsVec[m][3]);
+    //         // Eigen::Vector3d tmpvecfinal = IntersectVerif(f1.GoodValsVec[m][0], f1.GoodValsVec[m][1], tmpvec2_1, tmpvec2_2);
+    //         f1.IntersectionPoints.push_back(tmpvecfinal);
+    //     }
+    // }
 
     if (tmpcount > 0)
     {
