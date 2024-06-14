@@ -23,7 +23,8 @@ struct Frattura{
     void computePlane();
     std::vector<Eigen::Vector3d> IntersectionPoints;
     std::vector<Eigen::Vector2d> GoodValsDouble;
-    std::vector<std::vector<Eigen::Vector3d>> GoodValsVec; // Tensore
+    std::vector<std::vector<Eigen::Vector3d>> GoodValsVec; // "Tensore"
+    // Eigen::Vector3d PlaneDir;
 };
 
 struct Traccia{
