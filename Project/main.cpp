@@ -20,6 +20,8 @@ int main(int argc, char** argv){
 
 
     dfn.computeDFN();
+    dfn.output();
+    dfn.plotFracture();
 
     cout << "Programma terminato 0" << endl;
     return 0;

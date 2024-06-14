@@ -1,7 +1,9 @@
 #include "DFNLibrary.hpp"
 #include <fstream>
+#include <iomanip>
 #include <list>
-#define tol 1e-10
+#include <algorithm>
+#define tol 1e-6
 
 using namespace std;
 
@@ -35,7 +37,7 @@ bool DFNLibrary::importDFN(std::string path, DFN &dfn){
         for(size_t i = 0; i < 3; i++){
             getline(file, lines[i]);
             istringstream converter(lines[i]);          // int pos = lines[i].find(';',0);
-            for(size_t j = 0; j < f.numVert; j++){
+            for(int j = 0; j < f.numVert; j++){
                 char tmp;                               // f.vertices[j](i) = stod(lines[i].substr(0,pos));
                 converter >> f.vertices[j][i] >> tmp;   // lines[i] = lines[i].substr(pos+1, string::npos);
             }
@@ -104,7 +106,7 @@ void DFNLibrary::DFN::computeDFN(){
             vector<Eigen::Vector3d> v;
             if(i!=j && checkIntersection(fractures[i], fractures[j], v)){
                 cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
-
+                elaborateV(fractures[i], fractures[j], v);
             }
         }
     }
@@ -112,7 +114,164 @@ void DFNLibrary::DFN::computeDFN(){
 
 }
 
-bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vector3d> &v){
+void DFNLibrary::DFN::plotFracture(){
+    ofstream file("MLPlot.txt");
+    char xyz[3] = {'x', 'y', 'z'};
+    char color[] = {'r', 'g', 'b', 'c', 'm', 'y', 'k', 'w'};
+    int k = 0;
+    file << "figure\nhold on\n";
+    for(const DFNLibrary::Frattura& f : fractures){
+        for(int i = 0; i < 3; i++){
+            file << xyz[i] << " = [";
+            for(int j = 0; j < f.numVert; j++){
+                file << f.vertices[j][i] << "; ";
+            }
+            file << "]';" << endl;
+        }
+        file << "fill3(x,y,z,'"<< color[(k++)%8] << "');\n\n" << endl;
+    }
+
+    k = 0;
+    for(const DFNLibrary::Traccia& T : tracce){
+        file << "plot3(";
+        for(int i = 0; i < 3; i++){
+            file << T.origin[i] << ", ";
+        }
+        file << "'o', 'LineWidth',3);";
+        file << "\nplot3(";
+        for(int i = 0; i < 3; i++){
+            file << T.end[i] << ", ";
+        }
+        file << "'o', 'LineWidth',3);" << endl;
+        if((T.origin-T.end).norm() < tol)
+            k++;
+        // cout << (T.origin-T.end).norm() << "  " << endl;
+    }
+    cout << "Da escludere: " << k << endl;
+}
+
+
+void DFNLibrary::DFN::elaborateV(Frattura &f1, Frattura &f2, std::vector<Eigen::Vector3d> &v){
+    int coppie = 0;
+    for(int i = 0; i < 2; i++){
+        for(int j = 2; j < 4; j++){
+            if((v[i] - v[j]).norm() < tol)
+                coppie++;
+        }
+    }
+
+    if(coppie==2){
+        cout << "Traccia passante per entrambe" << endl;
+        Traccia T{{int(tracce.size())}, {v[0]}, {v[1]}, f1.id, f2.id};
+        for(size_t i = 0; i < v.size(); i++){
+            if((T.origin - v[i]).norm() > tol){
+                T.end = v[i];
+                break;
+            }
+        }
+        tracce.push_back(T);
+        fractures[f1.id].tracce.push_back(make_pair(&(tracce.back()), true));
+        fractures[f2.id].tracce.push_back(make_pair(&(tracce.back()), true));
+    }
+
+    else if(coppie==0){
+        Traccia T{{int(tracce.size())}, {}, {}, {f1.id}, {f2.id}};
+        Eigen::Vector3d temp, dir{v[1]-v[0]};
+        bool passante[2] = {false, false};
+        int k;
+        vector<Eigen::Vector3d> backup = v;
+        // bool swapped = false;
+        for(k = 0; k < 3; k++){
+            if(fabs(dir[k])>tol)
+                break;
+        }
+        for(int j = 0; j < 3; j++)
+            for(int i = 0; i < 3; i++)
+                if( v[i][k] > v[i+1][k] ){
+                    temp = v[i];
+                    v[i] = v[i+1];
+                    v[i+1] = temp;
+                }
+
+        T.origin = v[1];
+        T.end = v[2];
+
+        if( (T.origin == backup[0] || T.origin == backup[1]) &&
+            (T.end == backup[0] || T.end == backup[1]) ){
+            passante[0] = true;
+            cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
+        }
+
+        else if( (T.origin == backup[2] || T.origin == backup[3]) &&
+                 (T.end == backup[2] || T.end == backup[3]) ){
+            passante[1] = true;
+            cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
+        }
+        else
+            cout << "Traccia non passante per entrambe" << endl;
+
+        tracce.push_back(T);
+        fractures[f1.id].tracce.push_back(make_pair(&(tracce.back()), passante[0]));
+        fractures[f2.id].tracce.push_back(make_pair(&(tracce.back()), passante[1]));
+    }
+    else if(coppie==1){
+        Traccia T{{int(tracce.size())}, {},{},{f1.id}, {f2.id}};
+        bool passante[2] = {false, false};
+        if((v[0]-v[1]).norm() < (v[2]-v[3]).norm()){
+            passante[0] = true;
+            T.origin = v[0];
+            T.end = v[1];
+            cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
+        }
+        else {
+            passante[1] = true;
+            T.origin = v[2];
+            T.end = v[3];
+            cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
+        }
+        tracce.push_back(T);
+        fractures[f1.id].tracce.push_back(make_pair(&(tracce.back()), passante[0]));
+        fractures[f2.id].tracce.push_back(make_pair(&(tracce.back()), passante[1]));
+    }
+
+}
+
+void DFNLibrary::DFN::output(){
+    ofstream file("Output.txt");
+    file << "# Number of Traces\n" << tracce.size() << endl;
+
+    file << scientific << setprecision(16);
+    file << "# TraceId; FractureId1; FractureId2; X1; Y1; Z1; X2; Y2; Z2" << endl;
+    for(const Traccia& T : tracce){
+        file << T.id << "; " << T.idF1 << "; " << T.idF2 << "; "
+             << T.origin[0] << "; " << T.origin[1] << "; " << T.origin[2] << "; "
+             << T.end[0]    << "; " << T.end[1]    << "; " << T.end[2]   << endl;
+    }
+
+    file.close();
+
+    // ORDINAMENTO TRACCE
+
+    file.open("OutputFractures.txt");
+    file << scientific << setprecision(16);
+    for(Frattura& f : fractures){
+        file << "# FractureId; NumTraces" << endl;
+        file << f.id << "; " << f.tracce.size() << endl;
+        file << "# TraceId; Tips; Length" << endl;
+
+
+        sort( (f.tracce).begin(), (f.tracce).end(),  compareTrace );
+
+
+        for(const auto& coppia : f.tracce){
+            file << coppia.first->id << "; " << coppia.second
+                 << "; " << coppia.first->length() << endl;
+        }
+    }
+
+}
+
+bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vector3d>& v){
 
     // TEST 1: La distanza tra f1 e f2 è maggiore della somma dei raggi
     //  delle ipersfere che le contengono
@@ -142,17 +301,19 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
     if(!flag) return false;
 
 
-    Eigen::Matrix2d MAT;
-    Eigen::Vector2d TN;
+    // TEST 3: Calcolo intersezione effettiva
 
-    MAT << f1.planeC[0], f1.planeC[1],
-         f2.planeC[0], f2.planeC[1];
-    TN << -f1.planeD, -f2.planeD;
 
-    Eigen::Vector2d x = MAT.colPivHouseholderQr().solve(TN);
-    Eigen::Vector3d p1{{x(0),x(1),0}};
-    // Eigen::Vector3d P{{0.017584598939879986, 0, 0}};
     Eigen::Vector3d v1 = f1.planeC.cross(f2.planeC);
+
+    Eigen::MatrixXd MAT = Eigen::MatrixXd::Identity(2,3);
+    MAT.row(0) = f1.planeC;
+    MAT.row(1) = f2.planeC;
+
+    Eigen::VectorXd TN{{-f1.planeD}, {-f2.planeD}};
+    Eigen::VectorXd p1(3,1);
+    p1 = MAT.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(TN);
+
 
 
     // vector<Eigen::Vector3d> v;
@@ -174,7 +335,7 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
             // std::cout << "Le rette sono parallele o coincidenti.\n";
             continue;
         }
-        double sc = (b*e - c*d) / denom;
+        // double sc = (b*e - c*d) / denom;
         double tc = (a*e - b*d) / denom;
 
         Eigen::Vector3d intersection = p2 + tc*v2;
@@ -199,7 +360,7 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
             // std::cout << "Le rette sono parallele o coincidenti.\n";
             continue;
         }
-        double sc = (b*e - c*d) / denom;
+        // double sc = (b*e - c*d) / denom;
         double tc = (a*e - b*d) / denom;
 
         Eigen::Vector3d intersection = p2 + tc*v2;
@@ -208,8 +369,44 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
 
     }
 
-    if(v.size()>0)
+
+    if(v.size()==4){
+        vector<Eigen::Vector3d> backup = v;
+        int k;
+        Eigen::Vector3d temp;
+        for(k = 0; k < 3; k++){
+            if(fabs(v1[k])>tol)
+                break;
+        }
+        for(int j = 0; j < 3; j++)
+            for(int i = 0; i < 3; i++)
+                if( backup[i][k] > backup[i+1][k] ){
+                    temp = backup[i];
+                    backup[i] = backup[i+1];
+                    backup[i+1] = temp;
+                }
+
+        if( v[0][k] > v[1][k]  ){
+            temp = v[0];
+            v[0] = v[1];
+            v[1] = temp;
+        }
+
+        if( v[2][k] > v[3][k]  ){
+            temp = v[2];
+            v[2] = v[3];
+            v[3] = temp;
+        }
+
+        if( (backup[0]==v[0] && backup[1]==v[1]) ||
+            (backup[0]==v[2] && backup[1]==v[3]) ) return false;
+
+        else if((backup[0]==v[1] && backup[1]==v[0]) ||
+                (backup[0]==v[3] && backup[1]==v[2]) ) return false;
+
         return true;
+    }
+
 
 
 
@@ -221,7 +418,7 @@ int DFNLibrary::sign(double d){
     if (d>tol) return 1;
     if (d<-tol) return -1;
 
-    cout << "Careful" << endl;
+    cout << "Careful - Book case" << endl;
 
     return 0;
 }
@@ -229,3 +426,19 @@ int DFNLibrary::sign(double d){
 
 
 
+bool DFNLibrary::pointSort(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2){
+    return p1.norm() < p2.norm();
+}
+
+double DFNLibrary::Traccia::length(){
+    return (origin-end).norm();
+}
+
+bool DFNLibrary::compareTrace(std::pair<Traccia*, bool>& T1, std::pair<Traccia*, bool>& T2){
+    if(T1.second != T2.second){
+        if(T1.second) return true;
+        else return false;
+    }
+
+    return (T1.first->length() > T2.first->length());
+}
