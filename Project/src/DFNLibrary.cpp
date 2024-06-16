@@ -102,7 +102,7 @@ void DFNLibrary::DFN::computeDFN(){
         for(int j = i+1; j < numberFractures; j++){
             vector<Eigen::Vector3d> v;
             if(i!=j && checkIntersection(fractures[i], fractures[j], v)){
-                cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
+                // cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
                 elaborateV(fractures[i], fractures[j], v);
             }
         }
@@ -144,7 +144,7 @@ void DFNLibrary::DFN::plotFracture(){
             k++;
         // cout << (T.origin-T.end).norm() << "  " << endl;
     }
-    cout << "Da escludere: " << k << endl;
+    // cout << "Da escludere: " << k << endl;
 }
 
 
@@ -158,7 +158,7 @@ void DFNLibrary::DFN::elaborateV(Frattura &f1, Frattura &f2, std::vector<Eigen::
     }
 
     if(coppie==2){
-        cout << "Traccia passante per entrambe" << endl;
+        // cout << "Traccia passante per entrambe" << endl;
         Traccia T{{int(tracce.size())}, {v[0]}, {v[1]}, f1.id, f2.id};
         for(size_t i = 0; i < v.size(); i++){
             if((T.origin - v[i]).norm() > tol){
@@ -196,16 +196,16 @@ void DFNLibrary::DFN::elaborateV(Frattura &f1, Frattura &f2, std::vector<Eigen::
         if( (T.origin == backup[0] || T.origin == backup[1]) &&
             (T.end == backup[0] || T.end == backup[1]) ){
             passante[0] = true;
-            cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
+            // cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
         }
 
         else if( (T.origin == backup[2] || T.origin == backup[3]) &&
                  (T.end == backup[2] || T.end == backup[3]) ){
             passante[1] = true;
-            cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
+            // cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
         }
-        else
-            cout << "Traccia non passante per entrambe" << endl;
+        // else
+            // cout << "Traccia non passante per entrambe" << endl;
 
         tracce.push_back(T);
         fractures[f1.id].tracce.push_back(make_pair(&(tracce.back()), passante[0]));
@@ -218,13 +218,13 @@ void DFNLibrary::DFN::elaborateV(Frattura &f1, Frattura &f2, std::vector<Eigen::
             passante[0] = true;
             T.origin = v[0];
             T.end = v[1];
-            cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
+            // cout << "Traccia passante per f["<< f1.id <<"] e non passante per f["<< f2.id << "]"<< endl;
         }
         else {
             passante[1] = true;
             T.origin = v[2];
             T.end = v[3];
-            cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
+            // cout << "Traccia non passante per f["<< f1.id <<"] e passante per f["<< f2.id << "]"<< endl;
         }
         tracce.push_back(T);
         fractures[f1.id].tracce.push_back(make_pair(&(tracce.back()), passante[0]));

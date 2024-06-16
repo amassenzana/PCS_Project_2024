@@ -49,26 +49,27 @@ list(APPEND DFN_TEST_SOURCES ${DFN_TEST_sources})
 list(APPEND DFN_TEST_HEADERS ${DFN_TEST_headers})
 list(APPEND DFN_TEST_INCLUDE ${DFN_TEST_include})
 
+# Add file
+###############################################################################
+file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/DFN
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Create executable
 ################################################################################
 add_executable(${PROJECT_NAME} main.cpp ${DFN_SOURCES}   ${DFN_HEADERS})
+add_executable(${PROJECT_NAME}_TEST main_test.cpp
+    ${DFN_SOURCES} ${DFN_HEADERS}
+    ${DFN_TEST_SOURCES} ${DFN_TEST_HEADERS})
 
-file(COPY ${CMAKE_CURRENT_SOURCE_DIR}/DFN
-     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
-target_link_libraries(${PROJECT_NAME} ${DFN_LINKED_LIBRARIES})
-target_include_directories(${PROJECT_NAME} PRIVATE ${DFN_INCLUDE})
+target_include_directories(${PROJECT_NAME} PUBLIC ${DFN_INCLUDE})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC ${DFN_LINKED_LIBRARIES})
 target_compile_options(${PROJECT_NAME} PUBLIC -fPIC)
 
 
-add_executable(${PROJECT_NAME}_TEST main_test.cpp
-    ${DFN_TEST_SOURCES}
-    ${DFN_TEST_HEADERS})
 
-
-target_link_libraries(${PROJECT_NAME} ${DFN_LINKED_LIBRARIES})
+target_include_directories(${PROJECT_NAME}_TEST PRIVATE ${DFN_INCLUDE} ${DFN_TEST_INCLUDE})
 target_link_libraries(${PROJECT_NAME}_TEST PUBLIC ${DFN_LINKED_LIBRARIES})
-target_include_directories(${PROJECT_NAME}_TEST PRIVATE ${DFN_TEST_INCLUDE})
 target_compile_options(${PROJECT_NAME}_TEST PUBLIC -fPIC)
 
 

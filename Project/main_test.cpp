@@ -1,11 +1,7 @@
-#include <iostream>
-#include "Eigen/Eigen"
-#include "DFNLibrary.hpp"
-#include "gtest/gtest.h"
+#include "testDFN.hpp"
 
-int main(){
-    DFNLibrary::DFN dfn;
+int main(int argc, char **argv){
+    testing::InitGoogleTest(&argc, argv);
 
-
-    return 0;
+    return RUN_ALL_TESTS();
 }

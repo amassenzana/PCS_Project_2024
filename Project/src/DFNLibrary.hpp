@@ -44,7 +44,6 @@ bool checkIntersection(Frattura& f1, Frattura& f2, std::vector<Eigen::Vector3d>&
 int sign(double d);
 bool pointSort(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2);
 bool compareTrace(std::pair<Traccia*, bool>& T1, std::pair<Traccia*, bool>& T2);
-// void clockwiseInsert(std::vector<Eigen::Vector3d>& vertices, const Eigen::Vector3d& v);
 double angle(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2);
 double angleReference (const Eigen::Vector3d& v1, const Eigen::Vector3d& v2, const Eigen::Vector3d& center);
 } // namespace DFNLibrary
