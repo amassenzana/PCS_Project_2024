@@ -18,7 +18,6 @@ int main(int argc, char** argv){
     }
     else cout << "Importazione dati eseguita correttamente" << endl;
 
-
     dfn.computeDFN();
     dfn.output();
     dfn.plotFracture();
