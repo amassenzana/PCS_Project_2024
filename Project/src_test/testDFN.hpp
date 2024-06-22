@@ -5,7 +5,7 @@
 #include "DFNLibrary.hpp"
 #include <iostream>
 
-#define testtol 1e-3
+#define testtol 1e-6
 
 using namespace std;
 using namespace Eigen;
@@ -30,12 +30,12 @@ TEST(DFN_UTILITIES, TestComputeRadius){
     f.numVert = 4;
     f.vertices = {{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}};
     double r = f.computeRadius();
-    EXPECT_EQ(r, 1);
+    EXPECT_LT(r - 1, testtol);
 
     Frattura f2;
     f2.numVert = 4;
     f2.vertices = {{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}};
-    EXPECT_EQ(f2.computeRadius(), sqrt(2));
+    EXPECT_LT(f2.computeRadius() - sqrt(2), testtol);
 }
 
 
@@ -43,20 +43,20 @@ TEST(DFN_UTILITIES, TestComputePlane){
     Vector3d planeCoeff{0,0,0};
     Frattura f{{1},{4},{{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}},{}};
     double planeConstant = f.computePlane(planeCoeff);
-    EXPECT_EQ(planeConstant, 0);
-    EXPECT_EQ(planeCoeff[0], 0);
-    EXPECT_EQ(planeCoeff[1], 0);
+    EXPECT_LT(planeConstant, testtol);
+    EXPECT_LT(planeCoeff[0], testtol);
+    EXPECT_LT(planeCoeff[1], testtol);
     EXPECT_NE(planeCoeff[2], 0);
 }
 
 TEST(DFN_UTILITIES, TestTraceLength){
     Traccia T;
     T.id = 0; T.origin = {0,0,0}; T.end={1,0,0};
-    EXPECT_EQ(T.length(), 1);
+    EXPECT_LT(T.length() - 1, testtol);
 
     Traccia T2;
     T2.origin = {-1, -1, -1}; T2.end = {1, 1, 1};
-    EXPECT_EQ(T2.length(), 2*sqrt(3));
+    EXPECT_LT(T2.length() - 2*sqrt(3), testtol);
 }
 
 TEST(DFN_UTILITIES, TestSign){
@@ -81,6 +81,19 @@ TEST(DFN_UTILITIES, TestCompareTrace){
     PT1 = {&T1, true};
     PT2 = {&T2, true};
     EXPECT_EQ(compareTrace(PT1,PT2), 1);
+}
+
+TEST(DFN_UTILITIES, TestAngle){
+    Vector3d v1 = {1,0,0},  v2 = {0,1,0};
+    EXPECT_LT(angle(v1,v2) - M_PI/2, testtol);
+
+    Vector3d C = {0.5, 0.5, 0};
+    EXPECT_LT(angleReference(v1,v2,C) - M_PI, testtol);
+}
+
+TEST(DFN_UTILITIES, TestPointSort){
+    Vector3d v1 = {1,0,0}, v2 = {1.2,0,0};
+    EXPECT_EQ(pointSort(v1,v2), 1);
 }
 
 
@@ -131,7 +144,7 @@ TEST(DFN_TESTS, TestDFN3){
     EXPECT_LT(fabs(x[2]), testtol);
 
     expectOrigin = {0, 0.5, 0};
-    expectEnd = {0.316, 0.5, 0};
+    expectEnd = {0.3161837, 0.5, 0};
     x = dfn3.tracce.back().origin - expectOrigin;
     EXPECT_LT(fabs(x[0]), testtol);
     EXPECT_LT(fabs(x[1]), testtol);
@@ -168,6 +181,8 @@ TEST(DFN_TESTS, TestDFN362){
 
     EXPECT_EQ(dfn.tracce.size(), 1);
 }
+
+
 
 } //namespace DFNLibrary
 

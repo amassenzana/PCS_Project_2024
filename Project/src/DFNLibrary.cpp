@@ -147,7 +147,6 @@ void DFNLibrary::DFN::plotFracture(){
     // cout << "Da escludere: " << k << endl;
 }
 
-
 void DFNLibrary::DFN::elaborateV(Frattura &f1, Frattura &f2, std::vector<Eigen::Vector3d> &v){
     int coppie = 0;
     for(int i = 0; i < 2; i++){
@@ -418,13 +417,10 @@ int DFNLibrary::sign(double d){
     if (d>tol) return 1;
     if (d<-tol) return -1;
 
-    cout << "Careful - Book case" << endl;
+    // cout << "Careful - Book case" << endl;
 
     return 0;
 }
-
-
-
 
 bool DFNLibrary::pointSort(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2){
     return p1.norm() < p2.norm();
@@ -452,7 +448,7 @@ double DFNLibrary::angle(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2){
 }
 
 double DFNLibrary::angleReference(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2, const Eigen::Vector3d& center){
-    Eigen::Vector3d v1c = v1-center;
-    Eigen::Vector3d v2c = v2-center;
+    Eigen::Vector3d v1c = center-v1;
+    Eigen::Vector3d v2c = center-v2;
     return angle(v1c, v2c);
 }
