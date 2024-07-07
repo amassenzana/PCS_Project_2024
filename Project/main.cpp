@@ -22,6 +22,9 @@ int main(int argc, char** argv){
     dfn.output();
     dfn.plotFracture();
 
+    vector<PolygonalLibrary::PolygonalMesh> mesh;
+    cutDFN(dfn, mesh);
+
     cout << "Programma terminato 0" << endl;
     return 0;
 }
