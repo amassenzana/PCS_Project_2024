@@ -10,7 +10,7 @@
 
 namespace DFNLibrary{
 
-
+// Strutture
 struct Traccia{
     int id;
     Eigen::Vector3d origin, end;
@@ -29,7 +29,6 @@ struct Frattura{
     double computePlane(Eigen::Vector3d& planeC);
 };
 
-
 struct DFN{
     int numberFractures;
     std::vector<Frattura> fractures;
@@ -40,15 +39,13 @@ struct DFN{
     void output();
 };
 
+
+// Funzioni esterne alle strutture
 bool importDFN(std::string path, DFN& dfn);
 bool checkIntersection(Frattura& f1, Frattura& f2, std::vector<Eigen::Vector3d>& v);
 int sign(double d);
-bool pointSort(const Eigen::Vector3d& p1, const Eigen::Vector3d& p2); //
 
 bool compareTrace(std::pair<Traccia*, bool>& T1, std::pair<Traccia*, bool>& T2);
-
-double angle(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2); //
-double angleReference (const Eigen::Vector3d& v1, const Eigen::Vector3d& v2, const Eigen::Vector3d& center);
 
 bool lies(Eigen::Vector3d& A, Eigen::Vector3d& B, Eigen::Vector3d& P);
 void cut(Eigen::Vector3d A, Eigen::Vector3d B, Frattura F);

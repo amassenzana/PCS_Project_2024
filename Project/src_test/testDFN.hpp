@@ -82,18 +82,7 @@ TEST(DFN_UTILITIES, TestCompareTrace){
     EXPECT_EQ(compareTrace(PT1,PT2), 1);
 }
 
-TEST(DFN_UTILITIES, TestAngle){
-    Vector3d v1 = {1,0,0},  v2 = {0,1,0};
-    EXPECT_LT(fabs( angle(v1,v2) - M_PI/2 ), testtol);
 
-    Vector3d C = {0.5, 0.5, 0};
-    EXPECT_LT(fabs( angleReference(v1,v2,C) - M_PI ), testtol);
-}
-
-TEST(DFN_UTILITIES, TestPointSort){
-    Vector3d v1 = {1,0,0}, v2 = {1.2,0,0};
-    EXPECT_EQ(pointSort(v1,v2), 1);
-}
 
 TEST(DFN_UTILITIES, TestLiesOnSegment){
     Eigen::Vector3d P={0,0,0};

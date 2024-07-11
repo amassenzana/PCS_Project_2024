@@ -82,7 +82,6 @@ double DFNLibrary::Frattura::computeRadius(){
     return max;
 }
 
-
 double DFNLibrary::Frattura::computePlane(Eigen::Vector3d& planeC){
 
     Eigen::Vector3d p1 = vertices[0];
@@ -101,7 +100,7 @@ void DFNLibrary::DFN::computeDFN(){
     for(int i = 0; i < numberFractures; i++){
         for(int j = i+1; j < numberFractures; j++){
             vector<Eigen::Vector3d> v;
-            if(i!=j && checkIntersection(fractures[i], fractures[j], v)){
+            if(checkIntersection(fractures[i], fractures[j], v)){
                 // cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
                 elaborateV(fractures[i], fractures[j], v);
             }
@@ -301,8 +300,6 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
 
 
     // TEST 3: Calcolo intersezione effettiva
-
-
     Eigen::Vector3d v1 = f1pc.cross(f2pc);
 
     Eigen::MatrixXd MAT = Eigen::MatrixXd::Identity(2,3);
@@ -311,7 +308,8 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
 
     Eigen::VectorXd TN{{-f1pd}, {-f2pd}};
     Eigen::VectorXd p1(3,1);
-    p1 = MAT.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(TN);
+//    p1 = MAT.jacobiSvd(Eigen::ComputeThinU | Eigen::ComputeThinV).solve(TN);
+    p1 = MAT.colPivHouseholderQr().solve(TN);
 
 
 
@@ -422,10 +420,6 @@ int DFNLibrary::sign(double d){
     return 0;
 }
 
-bool DFNLibrary::pointSort(const Eigen::Vector3d &p1, const Eigen::Vector3d &p2){
-    return p1.norm() < p2.norm();
-}
-
 double DFNLibrary::Traccia::length(){
     return (origin-end).norm();
 }
@@ -437,19 +431,6 @@ bool DFNLibrary::compareTrace(std::pair<Traccia*, bool>& T1, std::pair<Traccia*,
     }
 
     return (T1.first->length() > T2.first->length());
-}
-
-double DFNLibrary::angle(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2){
-    double d = v1.dot(v2);
-    double lv1 = v1.norm();
-    double lv2 = v2.norm();
-    return std::acos(d / (lv1 * lv2));
-}
-
-double DFNLibrary::angleReference(const Eigen::Vector3d& v1, const Eigen::Vector3d& v2, const Eigen::Vector3d& center){
-    Eigen::Vector3d v1c = center-v1;
-    Eigen::Vector3d v2c = center-v2;
-    return angle(v1c, v2c);
 }
 
 bool DFNLibrary::lies(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vector3d &P){
@@ -514,8 +495,6 @@ void DFNLibrary::cutDFN(DFN &dfn, std::vector<PolygonalLibrary::PolygonalMesh> &
         globalMesh.push_back(mesh);
     }
 }
-
-
 
 void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d> > &listaTagli, PolygonalLibrary::PolygonalMesh &mesh, unsigned int idP){
 
@@ -742,7 +721,7 @@ bool DFNLibrary::prolungate(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vecto
     double t = ts(0);
     // double s = ts(1);
 
-    if(t < 0 || t > 1) {
+    if(t < 0-tol || t > 1+tol) {
         // L'intersezione esterna ad AB
         return false;
     }
