@@ -101,13 +101,10 @@ void DFNLibrary::DFN::computeDFN(){
         for(int j = i+1; j < numberFractures; j++){
             vector<Eigen::Vector3d> v;
             if(checkIntersection(fractures[i], fractures[j], v)){
-                // cout << "Intersezione tra f[" << i << "] e f[" << j << "]:" << endl;
                 elaborateV(fractures[i], fractures[j], v);
             }
         }
     }
-
-
 }
 
 void DFNLibrary::DFN::plotFracture(){
@@ -401,6 +398,8 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
         else if((backup[0]==v[1] && backup[1]==v[0]) ||
                 (backup[0]==v[3] && backup[1]==v[2]) ) return false;
 
+        if ( (backup[1]-backup[2]).norm() < tol ) return false;
+
         return true;
     }
 
@@ -409,15 +408,6 @@ bool DFNLibrary::checkIntersection(Frattura &f1, Frattura &f2, vector<Eigen::Vec
 
 
     return false;
-}
-
-int DFNLibrary::sign(double d){
-    if (d>tol) return 1;
-    if (d<-tol) return -1;
-
-    // cout << "Careful - Book case" << endl;
-
-    return 0;
 }
 
 double DFNLibrary::Traccia::length(){
@@ -431,6 +421,15 @@ bool DFNLibrary::compareTrace(std::pair<Traccia*, bool>& T1, std::pair<Traccia*,
     }
 
     return (T1.first->length() > T2.first->length());
+}
+
+int DFNLibrary::sign(double d){
+    if (d>tol) return 1;
+    if (d<-tol) return -1;
+
+    // cout << "Careful - Book case" << endl;
+
+    return 0;
 }
 
 bool DFNLibrary::lies(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vector3d &P){
@@ -466,12 +465,13 @@ void DFNLibrary::cutDFN(DFN &dfn, std::vector<PolygonalLibrary::PolygonalMesh> &
         mesh.Cell1DVertices.reserve(F.numVert);
         mesh.NumberCell1D = F.numVert;
 
-        mesh.Cell2DEdges.resize( F.tracce.size() +1 );
-        mesh.Cell2DVertices.resize( F.tracce.size() +1 );
+
+        // RESIZE NON VA BENE
+        mesh.Cell2DEdges.reserve( F.tracce.size() +1 );
+        mesh.Cell2DVertices.reserve( F.tracce.size() +1 );
         mesh.Cell2DId.push_back(mesh.NumberCell2D++);
 
-
-        // int k = 0;
+        vector<unsigned int> v1;
 
         for(int i = 0; i < F.numVert; i++){
             mesh.Cell0DId.push_back(i);
@@ -480,9 +480,11 @@ void DFNLibrary::cutDFN(DFN &dfn, std::vector<PolygonalLibrary::PolygonalMesh> &
             mesh.Cell1DId.push_back(i);
             mesh.Cell1DVertices.push_back({i, (i+1)%F.numVert});
 
-            mesh.Cell2DVertices[0].push_back(i);
-            mesh.Cell2DEdges[0].push_back(i);
+
+            v1.push_back(i);
         }
+        mesh.Cell2DVertices.push_back(v1);
+        mesh.Cell2DEdges.push_back(v1);
 
         list<pair<Eigen::Vector3d, Eigen::Vector3d>>  listaTagli;
         for( pair<Traccia*, bool>& T : F.tracce ){
@@ -504,14 +506,14 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
     listaTagli.pop_front();
 
     unsigned int k = 0, i = 0;
-    // bool cutIt[2] = {true,true};
+
     Eigen::Vector3d inters[2] = {};
     unsigned int lati[2], inizioFinePD[2] = {0,0}, ifPD[2] = {0,0};
     for( const unsigned int& lato : mesh.Cell2DEdges[idP] ){
         Eigen::Vector2i punti = mesh.Cell1DVertices[lato];
         Eigen::Vector3d A = mesh.Cell0DCoordinates[punti[0]];
         Eigen::Vector3d B = mesh.Cell0DCoordinates[punti[1]];
-        if( prolungate(A,B,T.first,T.second,inters[k]) ){
+        if( extendTrace(A,B,T.first,T.second,inters[k]) ){
             lati[k] = lato;
             if( (A-inters[k]).norm() < tol){
                 inters[k] = A;
@@ -538,6 +540,7 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
     mesh.Cell1DVertices.push_back(Eigen::Vector2i{mesh.NumberCell0D -2, mesh.NumberCell0D -1});
     mesh.Cell1DId.push_back(mesh.NumberCell1D++);
 
+    // AGGIUNGERE CONTROLLO COME SUL FOGLIO
     mesh.Cell1DVertices.push_back(Eigen::Vector2i{mesh.Cell1DVertices[lati[0]][0],mesh.NumberCell0D -2});
     mesh.Cell1DVertices.push_back(Eigen::Vector2i{mesh.Cell1DVertices[lati[0]][1],mesh.NumberCell0D -2});
     mesh.Cell1DVertices.push_back(Eigen::Vector2i{mesh.Cell1DVertices[lati[1]][0],mesh.NumberCell0D -1});
@@ -548,21 +551,77 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
     mesh.Cell1DId.push_back(mesh.NumberCell1D++);
     mesh.Cell1DId.push_back(mesh.NumberCell1D++);
 
-    for( i = 0; i < mesh.Cell2DVertices[idP].size(); i++ ){
-        if( mesh.Cell2DEdges[idP][i] == lati[0]  ){
+    bool flagS = false, flagD = false;
+    for(int i = 0; i < mesh.Cell2DVertices[idP].size(); i++ ){
 
-            PSEdges.push_back(mesh.NumberCell1D-4);
-            PSEdges.push_back(mesh.NumberCell1D-5);
+        if( mesh.Cell2DEdges[idP][i] == lati[0] ){
 
             inizioFinePD[0] = 1;
+            if(PSEdges.empty()){
+                flagS = true;
+                flagD = true;
+                continue;
+            }
+
+            if( mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-4][0] ||
+                mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-4][1] ||
+                mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-4][0] ||
+                mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-4][1] ){
+
+                PSEdges.push_back(mesh.NumberCell1D-4);  // lato 5
+                PDEdges.push_back(mesh.NumberCell1D-3);  // lato 6
+            }
+            else{
+                PSEdges.push_back(mesh.NumberCell1D-3);
+                PDEdges.push_back(mesh.NumberCell1D-4);
+            }
+            PSEdges.push_back(mesh.NumberCell1D-5);  // lato 4
 
         } else if( mesh.Cell2DEdges[idP][i] == lati[1] ){
 
-            PDEdges.push_back(mesh.NumberCell1D - 2);
-            PDEdges.push_back(mesh.NumberCell1D - 5);
-            PDEdges.push_back(mesh.NumberCell1D - 3);
+            if(PDEdges.empty()){
+                if(PSEdges.empty()){
+                    unsigned int temp = mesh.Cell2DEdges[idP][0];
+                    unsigned int temp2 = mesh.Cell2DEdges[idP][1];
+                    for(unsigned int t=0; t<mesh.Cell2DEdges[idP].size() -2; t++){
+                        mesh.Cell2DEdges[idP][t] = mesh.Cell2DEdges[idP][t+2];
+                    }
+                    mesh.Cell2DEdges[idP][mesh.Cell2DEdges[idP].size()-2] = temp;
+                    mesh.Cell2DEdges[idP][mesh.Cell2DEdges[idP].size()-1] = temp2;
+                    i=-1;
+                    flagS = false;
+                    inizioFinePD[0] = 0;
+                    continue;
+                }
 
-            PSEdges.push_back(mesh.NumberCell1D - 1);
+                if( mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-2][0] ||
+                    mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-2][1] ||
+                    mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-2][0] ||
+                    mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-2][1] ){
+
+                    PDEdges.push_back(mesh.NumberCell1D - 1);  // lato 7
+                    PSEdges.push_back(mesh.NumberCell1D - 2);  // lato 8
+                }
+                else {
+                    PDEdges.push_back(mesh.NumberCell1D - 2);  // lato 8
+                    PSEdges.push_back(mesh.NumberCell1D - 1);  // lato 7
+                }
+            }
+
+            if( mesh.Cell1DVertices[PDEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-2][0] ||
+                mesh.Cell1DVertices[PDEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-2][1] ||
+                mesh.Cell1DVertices[PDEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-2][0] ||
+                mesh.Cell1DVertices[PDEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-2][1] ){
+
+                PDEdges.push_back(mesh.NumberCell1D - 2);  // lato 7
+                PSEdges.push_back(mesh.NumberCell1D - 1);  // lato 8
+            }
+            else {
+                PDEdges.push_back(mesh.NumberCell1D - 1);  // lato 8
+                PSEdges.push_back(mesh.NumberCell1D - 2);  // lato 7
+            }
+            PDEdges.push_back(mesh.NumberCell1D - 5);  // lato 4
+
 
             inizioFinePD[1] = 1;
 
@@ -572,30 +631,61 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
             }
             else if(inizioFinePD[0] == 1 && inizioFinePD[1] == 0){
                 PDEdges.push_back(mesh.Cell2DEdges[idP][i]);
+                if(flagS) flagD = false;
             }
             else{
                 PSEdges.push_back(mesh.Cell2DEdges[idP][i]);
             }
         }
 
+        if(flagS && i==(mesh.Cell2DVertices[idP].size()-1)){
+            if( mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-4][0] ||
+                mesh.Cell1DVertices[PSEdges.back()][0] == mesh.Cell1DVertices[mesh.NumberCell1D-4][1] ||
+                mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-4][0] ||
+                mesh.Cell1DVertices[PSEdges.back()][1] == mesh.Cell1DVertices[mesh.NumberCell1D-4][1] ){
+
+                PSEdges.push_back(mesh.NumberCell1D-4);  // lato 5
+                PDEdges.push_back(mesh.NumberCell1D-3);  // lato 6
+            }
+            else{
+                PSEdges.push_back(mesh.NumberCell1D-3);
+                PDEdges.push_back(mesh.NumberCell1D-4);
+            }
+            PSEdges.push_back(mesh.NumberCell1D-5);  // lato 4
+        }
+
+
+    }
+
+    for( i=0; i<mesh.Cell2DEdges[idP].size(); i++){
         Eigen::Vector3d A = mesh.Cell0DCoordinates[mesh.Cell2DVertices[idP][i]];
         Eigen::Vector3d B = mesh.Cell0DCoordinates[mesh.Cell2DVertices[idP][(i+1)%mesh.Cell2DVertices[idP].size()]];
 
         if( lies(A, B, inters[0]) ){
-            PSVert.push_back(mesh.Cell2DVertices[idP][i]);
+
+            if(ifPD[0] == 1){
+                PDVert.push_back(mesh.Cell2DVertices[idP][i]);
+                ifPD[1] = 1;
+            } else{
+                PSVert.push_back(mesh.Cell2DVertices[idP][i]);
+            }
+
             PDVert.push_back(mesh.NumberCell0D-2);
             PSVert.push_back(mesh.NumberCell0D-2);
-
-
-            if(ifPD[0] == 1) ifPD[1] = 1;
             ifPD[0] = 1;
         }
         else if( lies(A,B, inters[1]) ){
-            PDVert.push_back(mesh.Cell2DVertices[idP][i]);
+
+            if(ifPD[0] == 1){
+                ifPD[1] = 1;
+                PDVert.push_back(mesh.Cell2DVertices[idP][i]);
+            }
+            else{
+                PSVert.push_back(mesh.Cell2DVertices[idP][i]);
+            }
+
             PDVert.push_back(mesh.NumberCell0D-1);
             PSVert.push_back(mesh.NumberCell0D-1);
-
-            if(ifPD[0] == 1) ifPD[1] = 1;
             ifPD[0] = 1;
         }
         else if( ifPD[0] == 0 ){
@@ -607,10 +697,38 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
         else {
             PSVert.push_back(mesh.Cell2DVertices[idP][i]);
         }
-
-
     }
 
+
+    bool flag = false;
+    vector<unsigned int> *pPDV = &PDVert, *pPSV = &PSVert;
+    for( i=0; i<PSVert.size(); i++ ){
+        if(PSVert.size() != PSEdges.size()){
+            flag = true;
+            break;
+        }
+        if(PSVert[i] != mesh.NumberCell0D-1 && PSVert[i] != mesh.NumberCell0D-2){
+            bool flag2 = false;
+            for(int j=0; j<PSEdges.size(); j++){
+                if(mesh.Cell1DVertices[PSEdges[j]][0] == PSVert[i] ||
+                    mesh.Cell1DVertices[PSEdges[j]][1] == PSVert[i] )    break;
+
+                if(j==PSEdges.size()-1){
+                    flag = true;
+                    break;
+                }
+            }
+        }
+    }
+    if(flag){
+        pPDV = &PSVert;
+        pPSV = &PDVert;
+    }
+
+
+
+
+    /*
     // CONTROLLARE TUTTI GLI ALTRI POLIGONI E RIMANEGGIARE PER MANTENERE COERENZA:
     // I LATI TAGLIATI, NEI POLIGONI VICINI VANNO RIAGGIORNATI PER AVERE DUE LATI PARALLELI
     for( i = 0; i < mesh.NumberCell2D; i++ ){
@@ -665,32 +783,50 @@ void DFNLibrary::cutPolygon(std::list<std::pair<Eigen::Vector3d, Eigen::Vector3d
 
         }
 
-    }
+    }*/
 
     // Ridistribuire le tracce su PDX e PSX
     list<pair<Eigen::Vector3d, Eigen::Vector3d>> listaTagliDx, listaTagliSx;
-    for( unsigned int j = 0; j < listaTagli.size(); j++ ){
+    while( !listaTagli.empty() ){
         pair<Eigen::Vector3d, Eigen::Vector3d> taglio = listaTagli.front();
         listaTagli.pop_front();
 
-        if( staDentro(taglio, mesh, PDVert) ){
+
+        Eigen::Vector3d A = mesh.Cell0DCoordinates[mesh.Cell1DVertices[mesh.NumberCell1D-5][0]],
+                        B = mesh.Cell0DCoordinates[mesh.Cell1DVertices[mesh.NumberCell1D-5][1]],
+                        C = taglio.first, D = taglio.second, intersect;
+
+        if( cutIntersection(C,D,A,B) ){
             listaTagliDx.push_back(taglio);
-        } else {
+            listaTagliSx.push_back(taglio);
+        } else if(isInside(taglio, A, B, mesh, *pPDV)){
+            listaTagliDx.push_back(taglio);
+        } else if(isInside(taglio, A, B, mesh, *pPSV)){
             listaTagliSx.push_back(taglio);
         }
+
     }
 
     mesh.Cell2DEdges[idP] = PDEdges;
-    mesh.Cell2DVertices[idP] = PDVert;
-    mesh.Cell2DEdges[mesh.NumberCell2D] = PSEdges;
-    mesh.Cell2DVertices[mesh.NumberCell2D] = PSVert;
+    mesh.Cell2DEdges.push_back(PSEdges);  //mesh.Cell2DEdges[mesh.NumberCell2D] = PSEdges;
+    if(!flag){
+        mesh.Cell2DVertices[idP] = PDVert;
+        mesh.Cell2DVertices.push_back(PSVert); // mesh.Cell2DVertices[mesh.NumberCell2D] = PSVert;
+    } else {
+        mesh.Cell2DVertices[idP] = PSVert;
+        mesh.Cell2DVertices.push_back(PDVert); //mesh.Cell2DVertices[mesh.NumberCell2D] = PDVert;
+    }
     mesh.Cell2DId.push_back(mesh.NumberCell2D++);
+    unsigned int idS = mesh.NumberCell2D-1;
 
-    cutPolygon(listaTagliDx, mesh, idP);
-    cutPolygon(listaTagliSx, mesh, mesh.NumberCell2D-1);
+    if(!listaTagliDx.empty())
+        cutPolygon(listaTagliDx, mesh, idP);
+
+    if(!listaTagliSx.empty())
+        cutPolygon(listaTagliSx, mesh, idS);
 }
 
-bool DFNLibrary::prolungate(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vector3d &C, Eigen::Vector3d &D, Eigen::Vector3d& inters){
+bool DFNLibrary::extendTrace(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vector3d &C, Eigen::Vector3d &D, Eigen::Vector3d& inters){
     if( lies(A,B,C) ){
         inters = C;
         return true;
@@ -706,7 +842,7 @@ bool DFNLibrary::prolungate(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vecto
 
     Eigen::Matrix2d matrix;
     matrix << AB.dot(AB), -CD.dot(AB),
-              AB.dot(CD), -CD.dot(CD);
+        AB.dot(CD), -CD.dot(CD);
 
     if (std::abs(matrix.determinant()) < 1e-10) {
         // Parallele o coincidenti
@@ -731,18 +867,66 @@ bool DFNLibrary::prolungate(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vecto
     return true;
 }
 
-bool DFNLibrary::staDentro(std::pair<Eigen::Vector3d, Eigen::Vector3d> &taglio, PolygonalLibrary::PolygonalMesh &mesh, std::vector<unsigned int> &P){
+bool DFNLibrary::isInside(std::pair<Eigen::Vector3d, Eigen::Vector3d> &taglio, Eigen::Vector3d& A, Eigen::Vector3d& B, PolygonalLibrary::PolygonalMesh& mesh, std::vector<unsigned int> &P){
 
-    Eigen::Vector3d normal = (mesh.Cell0DCoordinates[P[1]] - mesh.Cell0DCoordinates[P[0]]).cross(mesh.Cell0DCoordinates[P[2]] - mesh.Cell0DCoordinates[P[0]]).normalized();
-
-    for( unsigned int i = 0; i < P.size(); i++ ){
-        const Eigen::Vector3d& A = mesh.Cell0DCoordinates[P[i]];
-        const Eigen::Vector3d& B = mesh.Cell0DCoordinates[P[(i + 1) % P.size()]];
-        Eigen::Vector3d edgeNormal = (B - A).cross(normal).normalized();
-
-        double d = edgeNormal.dot(taglio.first - A);
-        if(d < 0) return false;
+    Eigen::Vector3d v1 = mesh.Cell0DCoordinates[P[0]] - mesh.Cell0DCoordinates[P[1]], v2, normal;
+    for(unsigned int i=2; i<P.size(); i++){
+        v2 = mesh.Cell0DCoordinates[P[0]] - mesh.Cell0DCoordinates[P[i]];
+        normal = v1.cross(v2);
+        if( normal.norm() > tol ) break;
     }
+
+    Eigen::Vector3d giac = (B-A).cross(normal);
+    double d = -giac.dot(A);
+
+
+    int segnoP = 0;
+    for(unsigned int i=0; i<P.size(); i++){
+        segnoP = sign(mesh.Cell0DCoordinates[P[i]].dot(giac) + d);
+        if( segnoP!=0 ) break;
+    }
+
+    int segnoC = sign(taglio.first.dot(giac) + d);
+
+    if( segnoP == segnoC ) return true;
+    else return false;
+
+}
+
+bool DFNLibrary::cutIntersection(Eigen::Vector3d &A, Eigen::Vector3d &B, Eigen::Vector3d &C, Eigen::Vector3d &D){
+    if( lies(A,B,C) ){
+        return false;
+    }
+    if( lies(A,B,D) ){
+        return false;
+    }
+
+    Eigen::Vector3d AB = B-A;
+    Eigen::Vector3d CD = D-C;
+    Eigen::Vector3d AC = C-A;
+
+    Eigen::Matrix2d matrix;
+    matrix << AB.dot(AB), -CD.dot(AB),
+        AB.dot(CD), -CD.dot(CD);
+
+    if (std::abs(matrix.determinant()) < tol) {
+        // Parallele o coincidenti
+        return false;
+    }
+
+    Eigen::Vector2d rhs;
+    rhs << AB.dot(AC),
+        CD.dot(AC);
+
+    Eigen::Vector2d ts = matrix.inverse() * rhs;
+    double t = ts(0);
+    double s = ts(1);
+
+    if(t < +tol || t > 1-tol) {
+        // L'intersezione esterna ad AB
+        return false;
+    }
+
 
     return true;
 }

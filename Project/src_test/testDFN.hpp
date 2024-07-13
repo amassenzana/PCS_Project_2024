@@ -18,11 +18,15 @@ TEST(DFN_UTILITIES, TestComputeCenter){
     f.numVert = 4;
     f.vertices = {{1,0,0}, {-1,0,0}, {0,1,0}, {0,-1,0}};
     Vector3d center = f.computeCenter(), C{0,0,0};
-    EXPECT_EQ(center, C);
+    EXPECT_LT(fabs(center[0]-C[0]), testtol);
+    EXPECT_LT(fabs(center[1]-C[1]), testtol);
+    EXPECT_LT(fabs(center[2]-C[2]), testtol);
 
 
     Frattura f2{{1},{4},{{1,1,0}, {1,-1,0}, {-1,1,0}, {-1,-1,0}},{}};
-    EXPECT_EQ(C, f2.computeCenter());
+    EXPECT_LT(fabs(C[0]-f2.computeCenter()[0]), testtol);
+    EXPECT_LT(fabs(C[1]-f2.computeCenter()[1]), testtol);
+    EXPECT_LT(fabs(C[2]-f2.computeCenter()[2]), testtol);
 }
 
 TEST(DFN_UTILITIES, TestComputeRadius){
@@ -82,7 +86,18 @@ TEST(DFN_UTILITIES, TestCompareTrace){
     EXPECT_EQ(compareTrace(PT1,PT2), 1);
 }
 
+// TEST(DFN_UTILITIES, TestAngle){
+//     Vector3d v1 = {1,0,0},  v2 = {0,1,0};
+//     EXPECT_LT(fabs( angle(v1,v2) - M_PI/2 ), testtol);
 
+//     Vector3d C = {0.5, 0.5, 0};
+//     EXPECT_LT(fabs( angleReference(v1,v2,C) - M_PI ), testtol);
+// }
+
+// TEST(DFN_UTILITIES, TestPointSort){
+//     Vector3d v1 = {1,0,0}, v2 = {1.2,0,0};
+//     EXPECT_EQ(pointSort(v1,v2), 1);
+// }
 
 TEST(DFN_UTILITIES, TestLiesOnSegment){
     Eigen::Vector3d P={0,0,0};
